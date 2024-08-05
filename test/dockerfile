@@ -1,0 +1,9 @@
+FROM golang:1.22
+
+ARG FOO
+ARG LOOP_FOO
+
+RUN echo "FOO=$FOO"
+RUN echo "LOOP_FOO=$LOOP_FOO"
+
+RUN for i in $(seq 1 $LOOP_FOO); do echo "LOOP_FOO=$i"; sleep 1; done
