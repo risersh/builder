@@ -1,4 +1,4 @@
-package docker
+package client
 
 // Ping checks if the Docker daemon is running and is reachable.
 //

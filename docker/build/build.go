@@ -8,36 +8,37 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/risersh/builder/docker/client"
+	"github.com/risersh/builder/docker/images"
 	"github.com/risersh/util/archiving"
 )
 
 type BuildArgs struct {
-	GetClientArgs
-	Context    string
-	Dockerfile string
-	Tags       []string
-	NoCache    bool
-	BuildArgs  map[string]*string
+	GetClientArgs client.GetClientArgs
+	Context       string
+	Dockerfile    string
+	Tags          []string
+	NoCache       bool
+	BuildArgs     map[string]*string
 }
 
-func Build(args BuildArgs) error {
-
+func Build(args BuildArgs) (image.Summary, error) {
 	buildCtx, err := archiving.Tar(args.Context)
 	if err != nil {
-		return err
+		return image.Summary{}, err
 	}
 
-	c, err := GetClient(args.GetClientArgs)
+	c, err := client.GetClient(args.GetClientArgs)
 	if err != nil {
-		return err
+		return image.Summary{}, err
 	}
-
-	ctx := context.Background()
 
 	contextReader, err := os.Open(args.Context)
 	if err != nil {
-		return err
+		return image.Summary{}, err
 	}
 	defer contextReader.Close()
 
@@ -53,9 +54,9 @@ func Build(args BuildArgs) error {
 		CPUPeriod:  10000,
 	}
 
-	response, err := c.Client.ImageBuild(ctx, buildCtx, options)
+	response, err := c.Client.ImageBuild(context.Background(), buildCtx, options)
 	if err != nil {
-		return err
+		return image.Summary{}, err
 	}
 	defer response.Body.Close()
 
@@ -67,15 +68,28 @@ func Build(args BuildArgs) error {
 			if err == io.EOF {
 				break
 			}
-			return err
+			return image.Summary{}, err
 		}
 		if msg.Error != nil {
-			return fmt.Errorf(msg.Error.Message)
+			return image.Summary{}, fmt.Errorf(msg.Error.Message)
 		}
 		if msg.Stream != "" {
 			fmt.Print(msg.Stream)
 		}
 	}
 
-	return nil
+	images, err := images.ListImages(images.ListImagesArgs{
+		GetClientArgs: args.GetClientArgs,
+		Filters: []filters.KeyValuePair{
+			{
+				Key:   "reference",
+				Value: args.Tags[0],
+			},
+		},
+	})
+	if err != nil {
+		return image.Summary{}, err
+	}
+
+	return images[0], nil
 }

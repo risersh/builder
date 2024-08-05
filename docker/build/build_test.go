@@ -1,14 +1,16 @@
 package docker
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/alecthomas/assert"
+	"github.com/mateothegreat/go-multilog/multilog"
+	"github.com/risersh/builder/docker/client"
 	"github.com/risersh/builder/test"
 	"github.com/risersh/util/variables"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,24 +31,11 @@ func (s *BuildSuite) TestBuild() {
 	assert.NoError(s.T(), err)
 	log.Printf("Current working directory: %s", dir)
 
-	contextPath := filepath.Join(dir, "..", "test")
-	dockerfilePath := filepath.Join(contextPath, "dockerfile")
-
-	log.Printf("Context path: %s", contextPath)
-	log.Printf("Dockerfile path: %s", dockerfilePath)
-
-	// Check if the Dockerfile exists
-	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
-		log.Printf("Dockerfile does not exist at: %s", dockerfilePath)
-	} else {
-		log.Printf("Dockerfile exists at: %s", dockerfilePath)
-	}
-
-	err = Build(BuildArgs{
-		GetClientArgs: GetClientArgs{
+	image, err := Build(BuildArgs{
+		GetClientArgs: client.GetClientArgs{
 			Host: test.GetDockerHost(),
 		},
-		Context:    contextPath,
+		Context:    "../../test",
 		Dockerfile: "dockerfile",
 		Tags:       []string{"test"},
 		BuildArgs: map[string]*string{
@@ -55,4 +44,10 @@ func (s *BuildSuite) TestBuild() {
 		NoCache: true,
 	})
 	assert.NoError(s.T(), err)
+	assert.Greater(s.T(), image.Size, int64(0))
+
+	multilog.Debug("test.build", "built image", map[string]interface{}{
+		"id":   image.ID,
+		"size": fmt.Sprintf("%d MB", image.Size/1024/1024),
+	})
 }

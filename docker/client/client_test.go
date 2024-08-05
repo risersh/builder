@@ -1,10 +1,10 @@
-package docker
+package client
 
 import (
 	"testing"
 
-	"github.com/alecthomas/assert"
 	"github.com/risersh/builder/test"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
